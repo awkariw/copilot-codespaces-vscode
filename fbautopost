@@ -1,0 +1,61 @@
+import feedparser
+import requests
+from bs4 import BeautifulSoup
+import schedule
+import time
+import tweepy
+
+# Facebook API credentials (replace with your details)
+FACEBOOK_PAGE_ID = "your_page_id"
+FACEBOOK_ACCESS_TOKEN = "your_access_token"
+FACEBOOK_API_URL = f"https://graph.facebook.com/v12.0/{FACEBOOK_PAGE_ID}/feed"
+
+# RSS Feed sources for Hip-Hop News
+NEWS_FEEDS = [
+    "https://www.hiphopdx.com/rss",
+    "https://www.rap-up.com/feed/",
+    "https://www.xxlmag.com/feed/"
+]
+
+# Function to fetch and parse news articles
+def fetch_news():
+    articles = []
+    for feed in NEWS_FEEDS:
+        news_feed = feedparser.parse(feed)
+        for entry in news_feed.entries[:3]:  # Limit to 3 articles per feed
+            summary = BeautifulSoup(entry.summary, "html.parser").text
+            articles.append({
+                "title": entry.title,
+                "link": entry.link,
+                "summary": summary
+            })
+    return articles
+
+# Function to post to Facebook
+def post_to_facebook(title, link):
+    message = f"{title}\nRead more: {link}"
+    payload = {"message": message, "access_token": FACEBOOK_ACCESS_TOKEN}
+    try:
+        response = requests.post(FACEBOOK_API_URL, data=payload)
+        if response.status_code == 200:
+            print(f"Posted on Facebook: {title}")
+        else:
+            print(f"Failed to post on Facebook: {response.text}")
+    except Exception as e:
+        print(f"Error posting to Facebook: {e}")
+
+# Main function to automate news posting
+def automate_news_posting():
+    articles = fetch_news()
+    for article in articles:
+        post_to_facebook(article["title"], article["link"])
+
+# Schedule to run every 6 hours
+schedule.every(6).hours.do(automate_news_posting)
+
+if __name__ == "__main__":
+    print("Starting automated hip-hop news Facebook posts...")
+    automate_news_posting()
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
